@@ -19,6 +19,9 @@ pub enum Codec {
     /// compression library. Each compressed block is followed by the 4-byte, big-endian
     /// CRC32 checksum of the uncompressed data in the block.
     Snappy,
+    #[cfg(feature = "bzip2")]
+    /// The `Bzip2` codec. Uses https://docs.rs/bzip2 as the underlying implementation.
+    Bzip2,
 }
 
 impl From<Codec> for Value {
@@ -56,6 +59,15 @@ impl Codec {
 
                 *stream = encoded;
             }
+            #[cfg(feature = "bzip2")]
+            Codec::Bzip2 => {
+                use bzip2::read::BzEncoder;
+                use bzip2::Compression;
+                let mut encoder = BzEncoder::new(&stream[..], Compression::new(5));
+                let mut out = Vec::<u8>::new();
+                encoder.read_to_end(&mut out).map_err(Error::Bzip2Compress)?;
+                *stream = out;
+            }
         };
 
         Ok(())
@@ -90,6 +102,14 @@ impl Codec {
                 if expected != actual {
                     return Err(Error::SnappyCrc32 { expected, actual });
                 }
+                decoded
+            }
+            #[cfg(feature = "bzip2")]
+            Codec::Bzip2 => {
+                use bzip2::read::BzDecoder;
+                let mut decompressor = BzDecoder::new(&stream[..]);
+                let mut decoded = Vec::new();
+                decompressor.read_to_end(&mut decoded).map_err(Error::Bzip2Decompress)?;
                 decoded
             }
         };
@@ -128,6 +148,18 @@ mod tests {
     #[test]
     fn snappy_compress_and_decompress() {
         let codec = Codec::Snappy;
+        let mut stream = INPUT.to_vec();
+        codec.compress(&mut stream).unwrap();
+        assert_ne!(INPUT, stream.as_slice());
+        assert!(INPUT.len() > stream.len());
+        codec.decompress(&mut stream).unwrap();
+        assert_eq!(INPUT, stream.as_slice());
+    }
+
+    #[cfg(feature = "bzip2")]
+    #[test]
+    fn bzip2_compress_and_decompress() {
+        let codec = Codec::Bzip2;
         let mut stream = INPUT.to_vec();
         codec.compress(&mut stream).unwrap();
         assert_ne!(INPUT, stream.as_slice());

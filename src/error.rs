@@ -280,9 +280,17 @@ pub enum Error {
     #[error("Failed to decompress with flate")]
     DeflateDecompress(#[source] std::io::Error),
 
+    #[cfg(feature = "bzip2")]
+    #[error("Failed to decompress with bzip2")]
+    Bzip2Decompress(#[source] std::io::Error),
+
     #[cfg(feature = "snappy")]
     #[error("Failed to compress with snappy")]
     SnappyCompress(#[source] snap::Error),
+
+    #[cfg(feature = "bzip2")]
+    #[error("Failed to compress with bzip2")]
+    Bzip2Compress(#[source] std::io::Error),
 
     #[cfg(feature = "snappy")]
     #[error("Failed to get snappy decompression length")]
