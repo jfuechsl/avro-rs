@@ -678,6 +678,7 @@ impl Parser {
     /// `Schema`.
     fn parse_record(&mut self, complex: &Map<String, Value>) -> AvroResult<Schema> {
         let name = Name::parse(complex)?;
+        let name_str = name.name.clone();
 
         let mut lookup = HashMap::new();
 
@@ -698,12 +699,14 @@ impl Parser {
             lookup.insert(field.name.clone(), field.position);
         }
 
-        Ok(Schema::Record {
+        self.parsed_schemas.insert(name_str.clone(), Schema::Record {
             name,
             doc: complex.doc(),
             fields,
             lookup,
-        })
+        });
+
+        Ok(self.parsed_schemas[&name_str].clone())
     }
 
     /// Parse a `serde_json::Value` representing a Avro enum type into a
